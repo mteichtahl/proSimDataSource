@@ -1,0 +1,5 @@
+main.o
+*.o
+*.a
+.DS_Store
+libProSimDataSource.so

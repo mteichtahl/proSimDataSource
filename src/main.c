@@ -11,43 +11,49 @@
 #include <sys/socket.h>
 #include <uv.h>
 #include <netinet/in.h>
-#include "PoKeysLib.h"
+#include "uthash.h"
+#include "main.h"
 
-#define BUFFER_LEN 8192
+struct simElements *elements = NULL; /* important! initialize to NULL */
 
-#define check_uv(status)                                                       \
-    do                                                                         \
-    {                                                                          \
-        int code = (status);                                                   \
-        if (code < 0)                                                          \
-        {                                                                      \
-            fprintf(stderr, "%s: %s\n", uv_err_name(code), uv_strerror(code)); \
-            exit(code);                                                        \
-        }                                                                      \
-    } while (0)
+simElements *findElement(char *id)
+{
+    struct simElements *s;
 
-#define memory_error(fmt, ...)                                                                                         \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        fprintf(stderr, "%s: %s (%d): not enough memory: " fmt "\n", __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__); \
-    } while (0)
+    if (pthread_rwlock_rdlock(&elementLock) != 0)
+        printf("can't get rdlock");
 
-uv_loop_t *loop;
-uv_buf_t read_buffer; // TCP read buffer
-uv_signal_t sigterm;  // SIGTERM handle
-uv_signal_t sigint;   // SIGINT handle
+    HASH_FIND_STR(elements, id, s); /* id already in the hash? */
+    pthread_rwlock_unlock(&elementLock);
+    return s;
+}
 
-void on_connect(uv_connect_t *req, int status);
-void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf);
-static void alloc_buffer(uv_handle_t *handle, size_t size, uv_buf_t *buf);
-void on_close(uv_handle_t *handle);
-static void on_signal(uv_signal_t *handle, int signum);
+void addElement(char *id, char *value, char *type)
+{
+    struct simElements *s = findElement(id);
 
-static void alloc_buffer(uv_handle_t *handle, size_t size, uv_buf_t *buf)
+    if (s == NULL)
+    {
+        s = (simElements *)malloc(sizeof(simElements));
+        strcpy(s->id, id);
+        strcpy(s->previousValue, "0");
+        strcpy(s->type, type);
+        if (pthread_rwlock_wrlock(&elementLock) != 0)
+            printf("can't get wrlock");
+        HASH_ADD_STR(elements, id, s); /* id: name of key field */
+        pthread_rwlock_unlock(&elementLock);
+    }
+    else
+    {
+        strcpy(s->previousValue, s->value);
+    }
+    strcpy(s->value, value);
+    printf("%s %s %s %s\n", s->id, s->value, s->previousValue, s->type);
+}
+
+inline static void alloc_buffer(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 {
     *buf = read_buffer;
-
-    //printf("A len: %d -> 0x%x\n", buf->len, buf->base);
 }
 
 void on_connect(uv_connect_t *req, int status)
@@ -64,77 +70,105 @@ void on_connect(uv_connect_t *req, int status)
 
 void on_close(uv_handle_t *handle)
 {
-    if (!loop->active_handles)
+    if (!simLoop->active_handles)
     {
-        uv_stop(&loop);
-    }
-}
-
-void processToken(int index,char *token)
-{
- 
-     printf(" processToken %d %s\n",index, token);
-
- 
-
-   
-}
-
-void processData(char *data, int len)
-{
-
-    printf("Processing %d bytes\n",len);
-    
-    char *tempToken = malloc(len);
-    memcpy(tempToken,data,len);
-
-   // printf(" - %s\n",tempToken+10);
-
-    // for(int i=0;i<len;i++){
-    //     printf("%02X\n",((unsigned char *)tempToken[i]));
-    //     if ( ((unsigned char *)tempToken[i])==0x0D && ((unsigned char *)tempToken[i+1])==0x0A ){
-    //         printf("----");
-
-    //     }
-    // }
-
-    char *token;
-    token = strtok(tempToken, "\r\n");
-    int i = 0;
-    /* walk through other tokens */
-    while (token != NULL)
-    {
-       
-        //printf("%d %s\n", i, token);
-        processToken(i,token);
-        token = strtok(NULL, "\r\n");
-        i++;
+       stopSimLoop();
     }
 }
 
 // Signal handling -- just stop the main loop
 static void on_signal(uv_signal_t *handle, int signum)
 {
-    uv_stop(&loop);
+
+    if (!simLoop->active_handles)
+    {
+       stopSimLoop();
+    }
+}
+
+char *getElementDataType(char identifier)
+{
+
+    switch (identifier)
+    {
+    case GAUGE_IDENTIFIER:
+        return "float";
+        break;
+    case NUMBER_IDENTIFIER:
+        return "float";
+        break;
+    case INDICATOR_IDENTIFIER:
+        return "bool";
+        break;
+    case VALUE_IDENTIFIER:
+        return "uint";
+        break;
+    case ANALOG_IDENTIFIER:
+        return "char";
+        break;
+    case ROTARY_IDENTIFIER:
+        return "char";
+        break;
+    case BOOLEAN_IDENTIFIER:
+        return "bool";
+        break;
+    default:
+        printf("oops");
+    }
+
+    return "float";
+}
+
+void processElement(int index, char *element)
+{
+
+    char *name = strtok(element, "=");
+    char *value = strtok(NULL, "=");
+
+    if (value == NULL)
+        return;
+
+    char *type = getElementDataType(name[0]);
+
+    addElement(name, value, type);
+
+    elementsProcessed++;
+}
+
+void processData(char *data, int len)
+{
+    int elementCount = 0;
+    char *p = strtok(data, "\n\r");
+    char *array[MAX_ELEMENTS_PER_UPDATE];
+
+    while (p != NULL)
+    {
+        array[elementCount++] = p;
+        p = strtok(NULL, "\n\r");
+    }
+
+    for (int i = 0; i < elementCount; ++i)
+        processElement(i, array[i]);
+
+    //free(data);
 }
 
 void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf)
 {
-    printf("R len: %d -> 0x%x\n", nread, buf->base);
+    // printf("R len: %d -> 0x%x\n", nread, buf->base);
+
     if (nread > 0)
     {
-        uv_buf_t buffer = uv_buf_init(malloc(nread), nread);
+        uv_buf_t buffer = uv_buf_init((char *)malloc(nread), nread);
         memcpy(buffer.base, buf->base, nread);
-
-        //printf("read: %d - %s\n", nread, buffer.base);
-        processData(buffer.base,nread);
+        processData(buffer.base, nread);
     }
     else if (nread < 0)
     {
         if (nread == UV_EOF)
         {
             printf("STOPPING LOOP\n");
-            uv_stop(&loop);
+            stopSimLoop();
         }
         else
         {
@@ -144,20 +178,32 @@ void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf)
     }
 }
 
-int main()
+extern void startSimLoop()
 {
-    uv_tcp_t client;
-    uv_connect_t connect_req;
+    check_uv(uv_run(simLoop, UV_RUN_DEFAULT));
+}
+
+extern void stopSimLoop()
+{
+    printf("Stopping\n");
+    uv_stop(simLoop);
+}
+
+extern int initSimConnection(char *ipAddress, int port)
+{
+
     struct sockaddr_in req_addr;
 
-    check_uv(uv_loop_init(&loop));
+    printf("Initialising Sim connection\n");
 
-    // check_uv(uv_signal_init(&loop, &sigterm));
-    // check_uv(uv_signal_start(&sigterm, on_signal, SIGTERM));
-    // check_uv(uv_signal_init(&loop, &sigint));
-    // check_uv(uv_signal_start(&sigint, on_signal, SIGINT));
+    if (pthread_rwlock_init(&elementLock, NULL) != 0)
+        printf("can't create rwlock");
 
-    // Buffer allocation for TCP reading
+    check_uv(uv_loop_init(&simLoop));
+    check_uv(uv_signal_init(&simLoop, &sigterm));
+    check_uv(uv_signal_start(&sigterm, on_signal, SIGTERM));
+
+    //Buffer allocation for TCP reading
     char *buffer;
     if (!(buffer = malloc(BUFFER_LEN)))
     {
@@ -165,25 +211,35 @@ int main()
     }
     read_buffer = uv_buf_init(buffer, BUFFER_LEN);
 
-    printf("Starting\n");
+    simLoop = uv_default_loop();
 
-    loop = uv_default_loop();
-
-    check_uv(uv_tcp_init(loop, &client));
+    check_uv(uv_tcp_init(simLoop, &client));
     uv_tcp_keepalive(&client, 1, 60);
-    uv_ip4_addr("192.168.2.2", 8091, &req_addr);
-
-    int rv = uv_tcp_connect(&connect_req, &client, (struct sockaddr *)&req_addr, on_connect);
-
-    if (rv != 0)
+    uv_ip4_addr(ipAddress, port, &req_addr);
+   
+    if (uv_tcp_connect(&connect_req, &client, (struct sockaddr *)&req_addr, on_connect) != 0)
     {
         printf("Error");
         return 1;
     }
+    return 0;
+}
 
-    if (read_buffer.base)
-        free(read_buffer.base);
+int main()
+{
 
-    check_uv(uv_run(loop, UV_RUN_DEFAULT));
+    initSimConnection("192.168.2.2", 8091);
+    startSimLoop();
+
+    // if (read_buffer.base)
+    //     free(read_buffer.base);
+
+    // struct simElements *currentElement, *tmp;
+
+    // HASH_ITER(hh, elements, currentElement, tmp)
+    // {
+    //     HASH_DEL(elements, currentElement); /* delete it (users advances to next) */
+    //     free(currentElement);               /* free it */
+    // }
     return 0;
 }
