@@ -2,6 +2,8 @@
 #include "main.h"
 #include "elements/elements.h"
 
+
+
 inline static void alloc_buffer(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 {
     *buf = read_buffer;
@@ -18,6 +20,7 @@ void on_connect(uv_connect_t *req, int status)
         printf("not readable\n");
     }
 }
+
 
 void on_close(uv_handle_t *handle)
 {
@@ -83,7 +86,10 @@ void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf)
 
 extern void startSimLoop()
 {
+
+    simStartStatsLoop();
     check_uv(uv_run(simLoop, UV_RUN_DEFAULT));
+ 
 }
 
 extern void stopSimLoop()
@@ -92,15 +98,22 @@ extern void stopSimLoop()
     uv_stop(simLoop);
 }
 
+extern void simSetLoggingHandler(zlog_category_t* handler)
+{
+    simLogHandler= handler;
+}
+
 extern int initSimConnection(char *ipAddress, int port)
 {
 
     struct sockaddr_in req_addr;
 
-    printf("Initialising Sim connection\n");
+        printf("Initialising simulator connection");
+        zlog_info(simLogHandler, "Initialising simulator connection");
+
 
     if (pthread_rwlock_init(&elementLock, NULL) != 0)
-        printf("can't create rwlock");
+         zlog_info(simLogHandler,"can't create rwlock");
 
     check_uv(uv_loop_init(&simLoop));
     check_uv(uv_signal_init(&simLoop, &sigterm));
@@ -122,7 +135,7 @@ extern int initSimConnection(char *ipAddress, int port)
    
     if (uv_tcp_connect(&connect_req, &client, (struct sockaddr *)&req_addr, on_connect) != 0)
     {
-        printf("Error");
+         zlog_info(simLogHandler,"Error");
         return 1;
     }
     return 0;
@@ -131,18 +144,16 @@ extern int initSimConnection(char *ipAddress, int port)
 int main()
 {
 
-    initSimConnection("192.168.2.2", 8091);
-    startSimLoop();
+   
+    // // if (read_buffer.base)
+    // //     free(read_buffer.base);
 
-    // if (read_buffer.base)
-    //     free(read_buffer.base);
+    // // struct simElements *currentElement, *tmp;
 
-    // struct simElements *currentElement, *tmp;
-
-    // HASH_ITER(hh, elements, currentElement, tmp)
-    // {
-    //     HASH_DEL(elements, currentElement); /* delete it (users advances to next) */
-    //     free(currentElement);               /* free it */
-    // }
+    // // HASH_ITER(hh, elements, currentElement, tmp)
+    // // {
+    // //     HASH_DEL(elements, currentElement); /* delete it (users advances to next) */
+    // //     free(currentElement);               /* free it */
+    // // }
     return 0;
 }

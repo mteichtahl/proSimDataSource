@@ -7,7 +7,7 @@ simElements *findElement(char *id)
     struct simElements *s;
 
     if (pthread_rwlock_rdlock(&elementLock) != 0)
-        printf("can't get rdlock");
+        zlog_info(simLogHandler, "can't get rdlock");
 
     HASH_FIND_STR(elements, id, s); /* id already in the hash? */
     pthread_rwlock_unlock(&elementLock);
@@ -25,7 +25,7 @@ void addElement(char *id, char *value, char *type)
         strcpy(s->previousValue, "0");
         strcpy(s->type, type);
         if (pthread_rwlock_wrlock(&elementLock) != 0)
-            printf("can't get wrlock");
+            zlog_info(simLogHandler, "can't get wrlock");
         HASH_ADD_STR(elements, id, s); /* id: name of key field */
         pthread_rwlock_unlock(&elementLock);
     }
@@ -34,7 +34,7 @@ void addElement(char *id, char *value, char *type)
         strcpy(s->previousValue, s->value);
     }
     strcpy(s->value, value);
-    printf("%s %s %s %s\n", s->id, s->value, s->previousValue, s->type);
+    // zlog_info(simLogHandler, "%s %s %s %s", s->id, s->value, s->previousValue, s->type);
 }
 
 char *getElementDataType(char identifier)
@@ -64,10 +64,10 @@ char *getElementDataType(char identifier)
         return "bool";
         break;
     default:
-        printf("oops");
+        return NULL;
     }
 
-    return "float";
+    return NULL;
 }
 
 void processElement(int index, char *element)
@@ -81,7 +81,59 @@ void processElement(int index, char *element)
 
     char *type = getElementDataType(name[0]);
 
-    addElement(name, value, type);
+    if (type != NULL)
+        addElement(name, value, type);
 
     elementsProcessed++;
+}
+
+void statsTimerCallback(uv_timer_t *timer, int status)
+{
+    struct statsStructure *stats = timer->data;
+    // zlog_info(simLogHandler, "%d total elements", HASH_COUNT(timer->data->elements));
+    zlog_info(simLogHandler, "%d Elements", stats->elementsProcessed);
+}
+
+void consumer_notify(uv_async_t *handle, int status)
+{
+    zlog_info(simLogHandler, "%d total elements / %d updates", HASH_COUNT(elements),elementsProcessed);
+}
+
+void *child_thread(void *data)
+{
+    uv_loop_t *thread_loop = (uv_loop_t *)data;
+    zlog_info(simLogHandler, "Starting main sim event loop");
+
+    //Start this loop
+    uv_run(thread_loop, UV_RUN_DEFAULT);
+    pthread_exit(NULL);
+}
+
+void timer_callback(uv_timer_t *handle, int status)
+{
+    uv_async_t *other_thread_notifier = (uv_async_t *)handle->data;
+    //Notify the other thread
+    uv_async_send(other_thread_notifier);
+}
+
+void simStartStatsLoop()
+{
+
+    pthread_t thread;
+    uv_async_t async;
+
+    statsLoop = uv_loop_new();
+    uv_async_init(statsLoop, &async, consumer_notify);
+    pthread_create(&thread, NULL, child_thread, statsLoop);
+
+    uv_loop_t *main_loop = uv_default_loop();
+    uv_timer_t reportingLoopTimer;
+    uv_timer_init(main_loop, &reportingLoopTimer);
+    reportingLoopTimer.data = &async;
+
+    int ret = uv_timer_start(&reportingLoopTimer, timer_callback, 0, 10000);
+
+    uv_run(main_loop, UV_RUN_DEFAULT);
+
+    
 }

@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <uv.h>
 #include <netinet/in.h>
+#include <zlog.h>
 #include "elements/elements.h"
 
 #define check_uv(status)                                                       \
@@ -38,11 +39,15 @@ uv_tcp_t client;
 uv_connect_t connect_req;
 
 
+//forward decl
+zlog_category_t*  simLogHandler;
+
+
 
 extern int initSimConnection(char *IPAddress, int port);
+extern void simSetLoggingHandler(zlog_category_t* handler);
 extern void startSimLoop();
 extern void stopSimLoop();
-
 
 void on_connect(uv_connect_t *req, int status);
 void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf);

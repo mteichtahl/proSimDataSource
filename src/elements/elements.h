@@ -25,8 +25,15 @@ typedef struct simElements
     UT_hash_handle hh; /* makes this structure hashable */
 } simElements;
 
+typedef struct statsStructure{
+    unsigned long int* elementsProcessed;
+    struct simElements* elements;
+} statsStructure;
+
 unsigned long int elementsProcessed;
+
 pthread_rwlock_t elementLock;
+uv_loop_t* statsLoop;
 
 char *getElementDataType(char identifier);
 simElements *findElement(char *id);
