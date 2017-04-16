@@ -87,14 +87,9 @@ void processElement(int index, char *element)
     elementsProcessed++;
 }
 
-void statsTimerCallback(uv_timer_t *timer, int status)
-{
-    struct statsStructure *stats = timer->data;
-    // zlog_info(simLogHandler, "%d total elements", HASH_COUNT(timer->data->elements));
-    zlog_info(simLogHandler, "%d Elements", stats->elementsProcessed);
-}
 
-void consumer_notify(uv_async_t *handle, int status)
+
+void statsTimerCallback(uv_async_t *handle, int status)
 {
     zlog_info(simLogHandler, "%d total elements / %d updates", HASH_COUNT(elements),elementsProcessed);
 }
@@ -102,7 +97,7 @@ void consumer_notify(uv_async_t *handle, int status)
 void *child_thread(void *data)
 {
     uv_loop_t *thread_loop = (uv_loop_t *)data;
-    zlog_info(simLogHandler, "Starting main sim event loop");
+    zlog_info(simLogHandler, "Starting simulator event loop");
 
     //Start this loop
     uv_run(thread_loop, UV_RUN_DEFAULT);
@@ -123,7 +118,7 @@ void simStartStatsLoop()
     uv_async_t async;
 
     statsLoop = uv_loop_new();
-    uv_async_init(statsLoop, &async, consumer_notify);
+    uv_async_init(statsLoop, &async, statsTimerCallback);
     pthread_create(&thread, NULL, child_thread, statsLoop);
 
     uv_loop_t *main_loop = uv_default_loop();
