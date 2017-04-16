@@ -2,23 +2,24 @@
 
 CC = gcc 
 DEBUG = -g3 -O0 
-CFLAGS = 
-CDFLAGS = -arch x86_64 
+CFLAGS += -luv -lpthread -I./elements/
 
-LDFLAGS = -c 
+LDFLAGS =  
 SOURCES = ./src/main.c \
+		  ./src/elements/elements.c
 		  
 OBJECTS = $(SOURCES:.c=.o)
 
 
 lib: $(OBJECTS)
-	$(CC) $(LDFLAGS) $(CDFLAGS) $(OBJECTS) -o proSimDataSource.o $(CFLAGS) 
-	$(CC) -shared -W1,-soname, -o libProSimDataSource.so src/main.o -luv
+	$(CC) -o proSimDataSource.o $(LDFLAGS) $(CDFLAGS) $(OBJECTS) $(CFLAGS) 
+	$(CC) $(CFLAGS) -shared -W1,-soname, -o libProSimDataSource.so $(OBJECTS)
 
 clean:
 	-rm -rf src/pokey.dSYM/
 
-all: clean pokey
-
+all: clean lib
+	 cp libProSimDataSource.so ../simPokey/bin/.
+	
 install: clean all
 	brew install --HEAD libuv
