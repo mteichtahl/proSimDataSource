@@ -1,0 +1,12 @@
+{
+    "version": "0.1.0",
+    "tasks": [
+        {   
+            "taskName": "build",
+            "args": ["all"],
+            "command": "/usr/bin/make",
+            "isShellCommand": true,
+            "showOutput": "always"
+        }
+    ]
+}
