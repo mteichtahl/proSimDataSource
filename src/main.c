@@ -1,8 +1,6 @@
 
-#include "main.h"
+#include "libProSimDataSource.h"
 #include "elements/elements.h"
-
-
 
 inline static void alloc_buffer(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 {
@@ -21,12 +19,11 @@ void on_connect(uv_connect_t *req, int status)
     }
 }
 
-
 void on_close(uv_handle_t *handle)
 {
     if (!simLoop->active_handles)
     {
-       stopSimLoop();
+        stopSimLoop();
     }
 }
 
@@ -36,10 +33,9 @@ static void on_signal(uv_signal_t *handle, int signum)
 
     if (!simLoop->active_handles)
     {
-       stopSimLoop();
+        stopSimLoop();
     }
 }
-
 
 void processData(char *data, int len)
 {
@@ -89,7 +85,6 @@ extern void startSimLoop()
 
     simStartStatsLoop();
     check_uv(uv_run(simLoop, UV_RUN_DEFAULT));
- 
 }
 
 extern void stopSimLoop()
@@ -98,9 +93,14 @@ extern void stopSimLoop()
     uv_stop(simLoop);
 }
 
-extern void simSetLoggingHandler(zlog_category_t* handler)
+extern void simSetLoggingHandler(zlog_category_t *handler)
 {
-    simLogHandler= handler;
+    simLogHandler = handler;
+}
+
+extern int getDataSourceShmid()
+{
+    return dataSourceShmid;
 }
 
 extern int initSimConnection(char *ipAddress, int port)
@@ -108,12 +108,11 @@ extern int initSimConnection(char *ipAddress, int port)
 
     struct sockaddr_in req_addr;
 
-        printf("Initialising simulator connection");
-        zlog_info(simLogHandler, "Initialising simulator connection");
-
+    printf("Initialising simulator connection");
+    zlog_info(simLogHandler, "Initialising simulator connection");
 
     if (pthread_rwlock_init(&elementLock, NULL) != 0)
-         zlog_info(simLogHandler,"can't create rwlock");
+        zlog_info(simLogHandler, "can't create rwlock");
 
     check_uv(uv_loop_init(&simLoop));
     check_uv(uv_signal_init(&simLoop, &sigterm));
@@ -132,19 +131,21 @@ extern int initSimConnection(char *ipAddress, int port)
     check_uv(uv_tcp_init(simLoop, &client));
     uv_tcp_keepalive(&client, 1, 60);
     uv_ip4_addr(ipAddress, port, &req_addr);
-   
+
     if (uv_tcp_connect(&connect_req, &client, (struct sockaddr *)&req_addr, on_connect) != 0)
     {
-         zlog_info(simLogHandler,"Error");
+        zlog_info(simLogHandler, "Error");
         return 1;
     }
+
+   
+    
     return 0;
 }
 
 int main()
 {
 
-   
     // // if (read_buffer.base)
     // //     free(read_buffer.base);
 

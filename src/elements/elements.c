@@ -34,7 +34,7 @@ void addElement(char *id, char *value, char *type)
         strcpy(s->previousValue, s->value);
     }
     strcpy(s->value, value);
-    // zlog_info(simLogHandler, "%s %s %s %s", s->id, s->value, s->previousValue, s->type);
+    zlog_info(simLogHandler, "%s %s %s %s", s->id, s->value, s->previousValue, s->type);
 }
 
 char *getElementDataType(char identifier)
@@ -84,14 +84,16 @@ void processElement(int index, char *element)
     if (type != NULL)
         addElement(name, value, type);
 
-    elementsProcessed++;
+    dataSourceStats->elementsProcessed = elementsProcessed++;
 }
 
 
 
 void statsTimerCallback(uv_async_t *handle, int status)
 {
-    zlog_info(simLogHandler, "%d total elements / %d updates", HASH_COUNT(elements),elementsProcessed);
+    unsigned long runtime = statsCallbackCounter * (STATUS_REPORT_FREQUENCY / 1000);
+    zlog_info(simLogHandler, "%d elements / %d updates / %2.2f elements/sec", HASH_COUNT(elements), dataSourceStats->elementsProcessed, (float)(dataSourceStats->elementsProcessed / runtime));
+    statsCallbackCounter++;
 }
 
 void *child_thread(void *data)
@@ -116,6 +118,7 @@ void simStartStatsLoop()
 
     pthread_t thread;
     uv_async_t async;
+    dataSourceStats = malloc(sizeof(t_stats));
 
     statsLoop = uv_loop_new();
     uv_async_init(statsLoop, &async, statsTimerCallback);
@@ -126,9 +129,7 @@ void simStartStatsLoop()
     uv_timer_init(main_loop, &reportingLoopTimer);
     reportingLoopTimer.data = &async;
 
-    int ret = uv_timer_start(&reportingLoopTimer, timer_callback, 0, 10000);
-
+    int ret = uv_timer_start(&reportingLoopTimer, timer_callback, 1000, STATUS_REPORT_FREQUENCY);
+   
     uv_run(main_loop, UV_RUN_DEFAULT);
-
-    
 }

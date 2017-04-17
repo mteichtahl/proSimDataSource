@@ -1,3 +1,6 @@
+#ifndef __MAIN_H
+#define __MAIN_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,8 +14,9 @@
 #include <sys/socket.h>
 #include <uv.h>
 #include <netinet/in.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 #include <zlog.h>
-#include "elements/elements.h"
 
 #define check_uv(status)                                                       \
     do                                                                         \
@@ -38,16 +42,30 @@ uv_signal_t sigint;   // SIGINT handle
 uv_tcp_t client;
 uv_connect_t connect_req;
 
+int dataSourceShmid;
+key_t key;
+
+#define SHMKEY7 123999
+
+
+typedef struct t_stats
+{
+     int elementsProcessed;
+} t_stats;
+
+
+
 
 //forward decl
 zlog_category_t*  simLogHandler;
-
+t_stats *dataSourceStats;
 
 
 extern int initSimConnection(char *IPAddress, int port);
 extern void simSetLoggingHandler(zlog_category_t* handler);
 extern void startSimLoop();
 extern void stopSimLoop();
+extern int  getDataSourceShmid();
 
 void on_connect(uv_connect_t *req, int status);
 void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf);
@@ -55,3 +73,5 @@ inline static void alloc_buffer(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 void on_close(uv_handle_t *handle);
 static void on_signal(uv_signal_t *handle, int signum);
 void processData(char *data, int len);
+
+#endif
