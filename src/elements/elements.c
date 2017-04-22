@@ -1,5 +1,4 @@
 #include "elements.h"
-
 struct simElements *elements = NULL; /* important! initialize to NULL */
 
 simElements *findElement(char *id)
@@ -7,11 +6,15 @@ simElements *findElement(char *id)
     struct simElements *s;
 
     if (pthread_rwlock_rdlock(&elementLock) != 0)
+    {
         zlog_info(simLogHandler, "can't get rdlock");
-
-    HASH_FIND_STR(elements, id, s); /* id already in the hash? */
-    pthread_rwlock_unlock(&elementLock);
-    return s;
+    }
+    else
+    {
+        HASH_FIND_STR(elements, id, s); /* id already in the hash? */
+        pthread_rwlock_unlock(&elementLock);
+        return s;
+    }
 }
 
 void addElement(char *id, char *value, char *type)
@@ -25,8 +28,14 @@ void addElement(char *id, char *value, char *type)
         strcpy(s->previousValue, "0");
         strcpy(s->type, type);
         if (pthread_rwlock_wrlock(&elementLock) != 0)
+        {
             zlog_info(simLogHandler, "can't get wrlock");
-        HASH_ADD_STR(elements, id, s); /* id: name of key field */
+        }
+        else
+
+        {
+            HASH_ADD_STR(elements, id, s); /* id: name of key field */
+        }
         pthread_rwlock_unlock(&elementLock);
     }
     else
@@ -34,7 +43,7 @@ void addElement(char *id, char *value, char *type)
         strcpy(s->previousValue, s->value);
     }
     strcpy(s->value, value);
-    zlog_info(simLogHandler, "%s %s %s %s", s->id, s->value, s->previousValue, s->type);
+    // zlog_info(simLogHandler, "%s %s %s %s", s->id, s->value, s->previousValue, s->type);
 }
 
 char *getElementDataType(char identifier)
@@ -87,8 +96,6 @@ void processElement(int index, char *element)
     dataSourceStats->elementsProcessed = elementsProcessed++;
 }
 
-
-
 void statsTimerCallback(uv_async_t *handle, int status)
 {
     unsigned long runtime = statsCallbackCounter * (STATUS_REPORT_FREQUENCY / 1000);
@@ -130,6 +137,6 @@ void simStartStatsLoop()
     reportingLoopTimer.data = &async;
 
     int ret = uv_timer_start(&reportingLoopTimer, timer_callback, 1000, STATUS_REPORT_FREQUENCY);
-   
+
     uv_run(main_loop, UV_RUN_DEFAULT);
 }

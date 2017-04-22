@@ -2,6 +2,7 @@
 #include "libProSimDataSource.h"
 #include "elements/elements.h"
 
+
 inline static void alloc_buffer(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 {
     *buf = read_buffer;
@@ -52,13 +53,10 @@ void processData(char *data, int len)
     for (int i = 0; i < elementCount; ++i)
         processElement(i, array[i]);
 
-    //free(data);
 }
 
 void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf)
 {
-    // printf("R len: %d -> 0x%x\n", nread, buf->base);
-
     if (nread > 0)
     {
         uv_buf_t buffer = uv_buf_init((char *)malloc(nread), nread);
@@ -79,6 +77,8 @@ void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf)
         }
     }
 }
+
+
 
 extern void startSimLoop()
 {
@@ -103,12 +103,12 @@ extern int getDataSourceShmid()
     return dataSourceShmid;
 }
 
-extern int initSimConnection(char *ipAddress, int port)
+extern int initSimConnection(char *ipAddress, int port,void *(*onElementUpdate)(void *))
 {
 
     struct sockaddr_in req_addr;
+    onElementUpdate(NULL);
 
-    printf("Initialising simulator connection");
     zlog_info(simLogHandler, "Initialising simulator connection");
 
     if (pthread_rwlock_init(&elementLock, NULL) != 0)
@@ -143,18 +143,9 @@ extern int initSimConnection(char *ipAddress, int port)
     return 0;
 }
 
+
 int main()
 {
 
-    // // if (read_buffer.base)
-    // //     free(read_buffer.base);
-
-    // // struct simElements *currentElement, *tmp;
-
-    // // HASH_ITER(hh, elements, currentElement, tmp)
-    // // {
-    // //     HASH_DEL(elements, currentElement); /* delete it (users advances to next) */
-    // //     free(currentElement);               /* free it */
-    // // }
     return 0;
 }

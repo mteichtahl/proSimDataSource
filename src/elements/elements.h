@@ -18,16 +18,16 @@
 
 #define STATUS_REPORT_FREQUENCY     10000
 
+
 typedef struct simElements
 {
     char id[64]; /* key */
     char value[128];
     char previousValue[128];
     char type[32];
+    void *(*onElementUpdate)(void *);
     UT_hash_handle hh; /* makes this structure hashable */
 } simElements;
-
-
 
 unsigned long int elementsProcessed;
 unsigned long int statsCallbackCounter;

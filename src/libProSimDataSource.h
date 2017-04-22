@@ -47,7 +47,6 @@ key_t key;
 
 #define SHMKEY7 123999
 
-
 typedef struct t_stats
 {
      int elementsProcessed;
@@ -61,7 +60,7 @@ zlog_category_t*  simLogHandler;
 t_stats *dataSourceStats;
 
 
-extern int initSimConnection(char *IPAddress, int port);
+extern int initSimConnection(char *ipAddress, int port,void *(*onElementUpdate)(void *));
 extern void simSetLoggingHandler(zlog_category_t* handler);
 extern void startSimLoop();
 extern void stopSimLoop();
