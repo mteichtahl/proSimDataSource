@@ -2,7 +2,9 @@
 #define __ELEMENTS_H
 
 #include <uv.h>
-#include "../libProSimDataSource.h"
+
+#include "libProSimDataSource.h"
+#include "libProSimDataSource_internal.h"
 #include "uthash.h"
 
 #define DEFAULT_SIM_PORT 8091
@@ -19,7 +21,7 @@
 #define STATUS_REPORT_FREQUENCY     10000
 
 
-typedef struct simElements
+typedef struct
 {
     char id[64]; /* key */
     char value[128];
@@ -27,7 +29,7 @@ typedef struct simElements
     char type[32];
     void *(*onElementUpdate)(void *);
     UT_hash_handle hh; /* makes this structure hashable */
-} simElements;
+} sim_elements_t;
 
 unsigned long int elementsProcessed;
 unsigned long int statsCallbackCounter;
@@ -35,9 +37,9 @@ unsigned long int statsCallbackCounter;
 pthread_rwlock_t elementLock;
 uv_loop_t* statsLoop;
 
-char *getElementDataType(char identifier);
-simElements *findElement(char *id);
-void addElement(char *id, char *value, char *type);
-void processElement(int index, char *element);
+char *element_get_data_type(char identifier);
+sim_elements_t *element_find(char *id);
+void element_add(char *id, char *value, char *type);
+void element_process(int index, char *element);
 
 #endif

@@ -1,7 +1,7 @@
 
 #include "libProSimDataSource.h"
+#include "libProSimDataSource_internal.h"
 #include "elements/elements.h"
-
 
 inline static void alloc_buffer(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 {
@@ -24,21 +24,20 @@ void on_close(uv_handle_t *handle)
 {
     if (!simLoop->active_handles)
     {
-        stopSimLoop();
+        stop_sim_loop();
     }
 }
 
 // Signal handling -- just stop the main loop
-static void on_signal(uv_signal_t *handle, int signum)
+void on_signal(uv_signal_t *handle, int signum)
 {
-
     if (!simLoop->active_handles)
     {
-        stopSimLoop();
+        stop_sim_loop();
     }
 }
 
-void processData(char *data, int len)
+void process_data(char *data, int len)
 {
     int elementCount = 0;
     char *p = strtok(data, "\n\r");
@@ -51,8 +50,7 @@ void processData(char *data, int len)
     }
 
     for (int i = 0; i < elementCount; ++i)
-        processElement(i, array[i]);
-
+        element_process(i, array[i]);
 }
 
 void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf)
@@ -61,14 +59,14 @@ void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf)
     {
         uv_buf_t buffer = uv_buf_init((char *)malloc(nread), nread);
         memcpy(buffer.base, buf->base, nread);
-        processData(buffer.base, nread);
+        process_data(buffer.base, nread);
     }
     else if (nread < 0)
     {
         if (nread == UV_EOF)
         {
             printf("STOPPING LOOP\n");
-            stopSimLoop();
+            stop_sim_loop();
         }
         else
         {
@@ -78,34 +76,30 @@ void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf)
     }
 }
 
-
-
-extern void startSimLoop()
+void start_sim_loop()
 {
-
-    simStartStatsLoop();
+    element_sim_start_stats_loop();
     check_uv(uv_run(simLoop, UV_RUN_DEFAULT));
 }
 
-extern void stopSimLoop()
+void stop_sim_loop()
 {
     printf("Stopping\n");
     uv_stop(simLoop);
 }
 
-extern void simSetLoggingHandler(zlog_category_t *handler)
+void sim_set_logging_handler(zlog_category_t *handler)
 {
     simLogHandler = handler;
 }
 
-extern int getDataSourceShmid()
+int get_data_source_shmid()
 {
     return dataSourceShmid;
 }
 
-extern int initSimConnection(char *ipAddress, int port,void *(*onElementUpdate)(void *))
+int init_sim_connection(char *ipAddress, int port,void *(*onElementUpdate)(void *))
 {
-
     struct sockaddr_in req_addr;
     onElementUpdate(NULL);
 
@@ -114,16 +108,19 @@ extern int initSimConnection(char *ipAddress, int port,void *(*onElementUpdate)(
     if (pthread_rwlock_init(&elementLock, NULL) != 0)
         zlog_info(simLogHandler, "can't create rwlock");
 
-    check_uv(uv_loop_init(&simLoop));
-    check_uv(uv_signal_init(&simLoop, &sigterm));
+    simLoop = (uv_loop_t*)calloc(1, sizeof(uv_loop_t));
+
+    check_uv(uv_loop_init(simLoop));
+    check_uv(uv_signal_init(simLoop, &sigterm));
     check_uv(uv_signal_start(&sigterm, on_signal, SIGTERM));
 
-    //Buffer allocation for TCP reading
+    // buffer allocation for TCP reading
     char *buffer;
     if (!(buffer = malloc(BUFFER_LEN)))
     {
         memory_error("Unable to allocate buffer of size %d", BUFFER_LEN);
     }
+
     read_buffer = uv_buf_init(buffer, BUFFER_LEN);
 
     simLoop = uv_default_loop();
@@ -136,16 +133,12 @@ extern int initSimConnection(char *ipAddress, int port,void *(*onElementUpdate)(
     {
         zlog_info(simLogHandler, "Error");
         return 1;
-    }
-
-   
+    }  
     
     return 0;
 }
 
-
 int main()
 {
-
     return 0;
 }
