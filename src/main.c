@@ -2,7 +2,6 @@
 #include "libProSimDataSource.h"
 #include "elements/elements.h"
 
-
 inline static void alloc_buffer(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 {
     *buf = read_buffer;
@@ -52,7 +51,6 @@ void processData(char *data, int len)
 
     for (int i = 0; i < elementCount; ++i)
         processElement(i, array[i]);
-
 }
 
 void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf)
@@ -78,8 +76,6 @@ void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf)
     }
 }
 
-
-
 extern void startSimLoop()
 {
 
@@ -103,11 +99,11 @@ extern int getDataSourceShmid()
     return dataSourceShmid;
 }
 
-extern int initSimConnection(char *ipAddress, int port,void *(*onElementUpdate)(void *))
+extern int initSimConnection(char *ipAddress, int port, void *(*cb)(void *))
 {
 
     struct sockaddr_in req_addr;
-    onElementUpdate(NULL);
+    onUpdate = cb;
 
     zlog_info(simLogHandler, "Initialising simulator connection");
 
@@ -138,11 +134,13 @@ extern int initSimConnection(char *ipAddress, int port,void *(*onElementUpdate)(
         return 1;
     }
 
-   
-    
     return 0;
 }
 
+int sendData(char* name, char* value){
+
+    return 0;
+}
 
 int main()
 {

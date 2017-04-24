@@ -27,12 +27,12 @@ void addElement(char *id, char *value, char *type)
         strcpy(s->id, id);
         strcpy(s->previousValue, "0");
         strcpy(s->type, type);
+        s->onElementUpdateCallback = onUpdate;
         if (pthread_rwlock_wrlock(&elementLock) != 0)
         {
             zlog_info(simLogHandler, "can't get wrlock");
         }
         else
-
         {
             HASH_ADD_STR(elements, id, s); /* id: name of key field */
         }
@@ -43,6 +43,9 @@ void addElement(char *id, char *value, char *type)
         strcpy(s->previousValue, s->value);
     }
     strcpy(s->value, value);
+    s->onElementUpdateCallback(s);
+    
+
     // zlog_info(simLogHandler, "%s %s %s %s", s->id, s->value, s->previousValue, s->type);
 }
 
@@ -81,7 +84,6 @@ char *getElementDataType(char identifier)
 
 void processElement(int index, char *element)
 {
-
     char *name = strtok(element, "=");
     char *value = strtok(NULL, "=");
 
