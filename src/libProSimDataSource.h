@@ -1,5 +1,5 @@
-#ifndef __MAIN_H
-#define __MAIN_H
+#ifndef INC_LIBPROSIMDATASOURCE_H
+#define INC_LIBPROSIMDATASOURCE_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,7 +16,11 @@
 #include <netinet/in.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include <zlog.h>
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #define check_uv(status)                                                       \
     do                                                                         \
@@ -35,42 +39,27 @@
         fprintf(stderr, "%s: %s (%d): not enough memory: " fmt "\n", __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__); \
     } while (0)
 
-uv_loop_t *simLoop;
-uv_buf_t read_buffer; // TCP read buffer
-uv_signal_t sigterm;  // SIGTERM handle
-uv_signal_t sigint;   // SIGINT handle
-uv_tcp_t client;
-uv_connect_t connect_req;
-
-int dataSourceShmid;
-key_t key;
-
 #define SHMKEY7 123999
 
-typedef struct t_stats
+typedef struct
 {
      int elementsProcessed;
-} t_stats;
+} datasource_stats_t;
 
-
-
-
-//forward decl
-zlog_category_t*  simLogHandler;
-t_stats *dataSourceStats;
-
-
-extern int initSimConnection(char *ipAddress, int port,void *(*onElementUpdate)(void *));
-extern void simSetLoggingHandler(zlog_category_t* handler);
-extern void startSimLoop();
-extern void stopSimLoop();
-extern int  getDataSourceShmid();
-
+int init_sim_connection(char *ipAddress, int port,void *(*onElementUpdate)(void *));
+void sim_set_logging_handler(zlog_category_t* handler);
+void start_sim_loop();
+void stop_sim_loop();
+int get_data_source_shmid();
 void on_connect(uv_connect_t *req, int status);
 void on_read(uv_stream_t *server, ssize_t nread, const uv_buf_t *buf);
 inline static void alloc_buffer(uv_handle_t *handle, size_t size, uv_buf_t *buf);
 void on_close(uv_handle_t *handle);
-static void on_signal(uv_signal_t *handle, int signum);
-void processData(char *data, int len);
+void on_signal(uv_signal_t *handle, int signum);
+void process_data(char *data, int len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

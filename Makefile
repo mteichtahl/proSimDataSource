@@ -2,12 +2,12 @@
 
 CC = gcc 
 DEBUG = -g3 -O0 
-CFLAGS += -luv -lpthread -lzlog -I./elements/
+CFLAGS += -luv -lpthread -lzlog -I./src -I./elements
 
 LDFLAGS =  
 SOURCES = ./src/main.c \
 		  ./src/elements/elements.c
-		  
+
 OBJECTS = $(SOURCES:.c=.o)
 
 lib: $(OBJECTS) 
@@ -22,8 +22,9 @@ clean:
 	-rm -f ./src/elements/*.o
 
 all: clean lib
-	 cp libProSimDataSource.so ../simPokey/libs/.
-	
+	cp libProSimDataSource.so ../simPokey/libs/
+	cp src/libProSimDataSource.h ../simPokey/src/
+
 install: clean all
 	#brew install --HEAD libuv
 
